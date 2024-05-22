@@ -1,92 +1,85 @@
 import { test, expect, Locator } from '@playwright/test';
-import * as baseSelectors from '../helpers/selectors/base'
+import * as baseSelectors from '../helpers/selectors/base';
 
 const TODO_ITEMS: string[] = [
-    'feed the cat',
-    'cleanup kitchen',
-    'prepare steaks'
-]
+  'feed the cat',
+  'cleanup kitchen',
+  'prepare steaks',
+];
 
 test.beforeEach(async ({ page }) => {
-    await page.goto('/examples/react/dist/');
-})
+  await page.goto('/examples/react/dist/');
+});
 
 test.describe('Todo app', () => {
-    let todoInput: Locator;
-    let todoCounter: Locator;
-    let todoList: Locator;
+  let todoInput: Locator;
+  let todoCounter: Locator;
+  let todoList: Locator;
 
-    test.beforeEach(async ({ page }) => {
-        todoInput = page.getByPlaceholder('What needs to be done?');
-        todoCounter = page.locator(baseSelectors.todoCount);
-        todoList = page.getByTestId(baseSelectors.todoList);
+  test.beforeEach(async ({ page }) => {
+    todoInput = page.getByPlaceholder('What needs to be done?');
+    todoCounter = page.locator(baseSelectors.todoCount);
+    todoList = page.getByTestId(baseSelectors.todoList);
+  });
+
+  test.describe('Check overall app', () => {
+    test('Page should have title', async ({ page }) => {
+      await expect(page).toHaveTitle(/TodoMVC.*/);
     });
 
-    test.describe('Check overall app', () => {
-        test('Page should have title', async ({ page }) => {
-            await expect(page).toHaveTitle(/TodoMVC.*/);
-        })
+    test('Page should have proper URL', async ({ page }) => {
+      await expect(page).toHaveURL(/.*todomvc.*/);
+    });
+  });
 
-        test('Page should have proper URL', async ({ page }) => {
-            await expect(page).toHaveURL(/.*todomvc.*/);
-        })
-    })
+  test.describe('Add new todo', () => {
+    test('Should let me add new todo', async ({ page }) => {
+      for (const todo of TODO_ITEMS) {
+        await todoInput.fill(todo);
+        await todoInput.press('Enter');
+      }
 
-    test.describe('Add new todo', () => {
-        test('Should let me add new todo', async ({ page }) => {
+      const todoListItems: Locator = page.getByTestId(baseSelectors.todoItem);
 
-            for (const todo of TODO_ITEMS) {
-                await todoInput.fill(todo)
-                await todoInput.press('Enter')
-            }
+      await expect(todoListItems).toHaveCount(TODO_ITEMS.length);
 
-            const todoListItems: Locator = page.getByTestId(baseSelectors.todoItem)
+      for (const todo of TODO_ITEMS) {
+        await expect(todoList).toContainText(todo);
+      }
+    });
 
-            await expect(todoListItems).toHaveCount(TODO_ITEMS.length)
+    test('Should update todo count correctly', async () => {
+      for (const [index, todo] of TODO_ITEMS.entries()) {
+        await todoInput.fill(todo);
+        await todoInput.press('Enter');
 
-            for (const todo of TODO_ITEMS) {
-                await expect(todoList).toContainText(todo)
-            }
+        const itemCount = index + 1;
+        const expectedText = `${itemCount} item${itemCount > 1 ? 's' : ''} left!`;
 
-        })
+        await expect(todoCounter).toHaveText(expectedText);
+      }
+    });
 
-        test('Should update todo count correctly', async () => {
-            for (let [index, todo] of TODO_ITEMS.entries()) {
-                await todoInput.fill(todo)
-                await todoInput.press('Enter')
+    test('TODO input is empty when new todo is created', async () => {
+      await todoInput.fill(TODO_ITEMS[0]);
+      await todoInput.press('Enter');
 
-                const itemCount = index + 1;
-                const expectedText = `${itemCount} item${itemCount > 1 ? 's' : ''} left!`;
+      await expect(todoInput).toBeEmpty();
+    });
+  });
 
-                await expect(todoCounter).toHaveText(expectedText);
-            }
-        })
+  test.describe('Manage TODOs', () => {
+    test('User can mark TODO as completed', async ({ page }) => {
+      await todoInput.fill(TODO_ITEMS[0]);
+      await todoInput.press('Enter');
 
+      const todoItem: Locator = page.getByTestId(baseSelectors.todoItem);
+      const todoItemToggle: Locator = page.getByTestId(
+        baseSelectors.todoItemToggle,
+      );
 
-        test('TODO input is empty when new todo is created', async () => {
-
-            await todoInput.fill(TODO_ITEMS[0])
-            await todoInput.press('Enter')
-
-            await expect(todoInput).toBeEmpty()
-        })
-
-    })
-
-    test.describe('Manage TODOs', () => {
-        test('User can mark TODO as completed', async ({ page }) => {
-            await todoInput.fill(TODO_ITEMS[0])
-            await todoInput.press('Enter')
-
-            const todoItem: Locator = page.getByTestId(baseSelectors.todoItem)
-            const todoItemToggle: Locator = page.getByTestId(baseSelectors.todoItemToggle)
-
-            await todoItemToggle.click()
-            await expect(todoItem).toHaveClass('completed')
-        })
-
-    })
-})
-
-
-
+      await todoItemToggle.click();
+      await expect(todoItem).toHaveClass('completed');
+    });
+  });
+});
